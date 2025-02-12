@@ -16,6 +16,9 @@ Forces survival mode on/off for the current map and/or all future maps. Type `.s
     - 0 = Force survival mode **OFF** for all maps
     - -1 = Don't force anything (default)
 
+# CVars
+`as_command forcesurvival.lives 3` number of lives for semisurvival mode (all dead at the same time).
+
 # Installation
 1. Download the latest [release](https://github.com/wootguy/ForceSurvival/releases) and extract to `svencoop_addon`
 1. Add this to `default_plugins.txt`
@@ -24,5 +27,6 @@ Forces survival mode on/off for the current map and/or all future maps. Type `.s
     {
         "name" "ForceSurvival"
         "script" "ForceSurvival"
+        "concommandns" 	"forcesurvival"
     }
 ```

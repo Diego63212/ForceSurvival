@@ -4,6 +4,7 @@ string cp_save_path = "scripts/plugins/store/ForceSurvival/";
 
 CCVar@ g_crossPluginToggle;
 CCVar@ g_respawnWaveTime;
+CCVar@ g_numberOfLives;
 
 void print(string text) { g_Game.AlertMessage( at_console, text); }
 void println(string text) { print(text + "\n"); }
@@ -19,6 +20,7 @@ int g_wait_fake_detect = 0; // wait a second to be sure fake survival is really 
 float g_next_respawn_wave = 0;
 
 int g_force_mode = -1;
+int g_lives = 0;
 
 CScheduledFunction@ g_cancel_schedule = null;
 
@@ -51,6 +53,7 @@ void PluginInit()
 	
 	@g_crossPluginToggle = CCVar("mode", -1, "Toggle survival mode from other plugins via this CVar", ConCommandFlag::AdminOnly);
 	@g_respawnWaveTime = CCVar("waveTime", 2*60, "Time in seconds for wave respawns", ConCommandFlag::AdminOnly);
+	@g_numberOfLives = CCVar("lives", 3, "Amount of lives", ConCommandFlag::AdminOnly);
 }
 
 string formatTime(float t, bool statsPage=false) {
@@ -204,6 +207,9 @@ void doCommand(CBasePlayer@ plr, const CCommand@ args, bool inConsole) {
 }
 
 void setupNoRestartSurvival() {
+	if (!g_no_restart_mode) {
+		g_lives = g_numberOfLives.GetInt();
+	}
 	g_no_restart_mode = true;
 	g_next_respawn_wave = g_Engine.time + g_respawnWaveTime.GetInt();
 }
@@ -328,7 +334,14 @@ void check_living_players() {
 	
 	if (g_no_restart_mode && !g_respawning_everyone) {
 		g_respawning_everyone = true;
-		g_next_respawn_wave = g_Engine.time + 4;
+		if (g_lives > 1) {
+			g_lives -= 1;
+			g_next_respawn_wave = g_Engine.time + 4;
+			g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "Lives: " + g_lives + "\n");
+		} else {
+			g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "All lives lost.\n");
+			g_Scheduler.SetTimeout("restart_map", 10);
+		}
 	}
 	else if (g_fake_survival_detected && !g_restarting_fake_survival_map) {
 		g_restarting_fake_survival_map = true;
