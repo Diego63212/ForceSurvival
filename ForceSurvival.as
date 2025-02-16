@@ -5,6 +5,7 @@ string cp_save_path = "scripts/plugins/store/ForceSurvival/";
 CCVar@ g_crossPluginToggle;
 CCVar@ g_respawnWaveTime;
 CCVar@ g_numberOfLives;
+CCVar@ g_livesMode;
 
 void print(string text) { g_Game.AlertMessage( at_console, text); }
 void println(string text) { print(text + "\n"); }
@@ -21,6 +22,7 @@ float g_next_respawn_wave = 0;
 
 int g_force_mode = -1;
 int g_lives = 0;
+bool g_lives_mode = false;
 
 CScheduledFunction@ g_cancel_schedule = null;
 
@@ -53,7 +55,8 @@ void PluginInit()
 	
 	@g_crossPluginToggle = CCVar("mode", -1, "Toggle survival mode from other plugins via this CVar", ConCommandFlag::AdminOnly);
 	@g_respawnWaveTime = CCVar("waveTime", 2*60, "Time in seconds for wave respawns", ConCommandFlag::AdminOnly);
-	@g_numberOfLives = CCVar("lives", 3, "Amount of lives", ConCommandFlag::AdminOnly);
+	@g_numberOfLives = CCVar("lives", 3, "Number of semisurvival lives", ConCommandFlag::AdminOnly);
+	@g_livesMode = CCVar("livesMode", 0, "Type of lives (0 = All dead; 1 = Any dead)", ConCommandFlag::AdminOnly);
 }
 
 string formatTime(float t, bool statsPage=false) {
@@ -207,11 +210,10 @@ void doCommand(CBasePlayer@ plr, const CCommand@ args, bool inConsole) {
 }
 
 void setupNoRestartSurvival() {
-	if (!g_no_restart_mode) {
-		g_lives = g_numberOfLives.GetInt();
-	}
 	g_no_restart_mode = true;
 	g_next_respawn_wave = g_Engine.time + g_respawnWaveTime.GetInt();
+	g_lives = g_numberOfLives.GetInt();
+	g_lives_mode = g_livesMode.GetInt() > 0;
 }
 
 void abort_vote_cancel() {
@@ -318,6 +320,14 @@ void check_living_players() {
 	}
 	
 	if (g_no_restart_mode && g_next_respawn_wave < g_Engine.time && totalLiving < totalPlayers) {
+		if (g_lives_mode && totalLiving > 0) {
+			if (g_lives > 1) {
+				g_lives -= 1;
+				g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "Lives: " + g_lives + "\n");
+			} else {
+				return;
+			}
+		}
 		int deadCount = totalPlayers - totalLiving;
 		string ess = (deadCount == 1) ? "" : "s";
 		g_PlayerFuncs.ClientPrintAll(HUD_PRINTNOTIFY, "[SemiSurvival] Respawning " + deadCount + " dead player" + ess + ".\n");
@@ -325,7 +335,7 @@ void check_living_players() {
 		totalLiving = totalPlayers;
 	}
 	if (g_no_restart_mode and totalLiving == totalPlayers) {
-		setupNoRestartSurvival(); // reset the timer until at least one player is dead
+		g_next_respawn_wave = g_Engine.time + g_respawnWaveTime.GetInt(); // reset the timer until at least one player is dead
 	}
 	
 	if (totalLiving > 0) {
@@ -340,7 +350,6 @@ void check_living_players() {
 			g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "Lives: " + g_lives + "\n");
 		} else {
 			g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "All lives lost.\n");
-			g_Scheduler.SetTimeout("restart_map", 10);
 		}
 	}
 	else if (g_fake_survival_detected && !g_restarting_fake_survival_map) {
