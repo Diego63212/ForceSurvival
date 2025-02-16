@@ -214,6 +214,7 @@ void doCommand(CBasePlayer@ plr, const CCommand@ args, bool inConsole) {
 void setupNoRestartSurvival() {
 	g_no_restart_mode = true;
 	g_next_respawn_wave = g_Engine.time + g_respawnWaveTime.GetInt();
+	g_respawning_everyone = false;
 	g_lives = g_numberOfLives.GetInt();
 	g_lives_mode = g_livesMode.GetInt() > 0;
 }
