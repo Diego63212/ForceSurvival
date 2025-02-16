@@ -17,10 +17,10 @@ Forces survival mode on/off for the current map and/or all future maps. Type `.s
     - -1 = Don't force anything (default)
 
 # CVars
-`as_command forcesurvival.mode -1` toggle survival mode from a server/map cfg file CVar.\
+`as_command forcesurvival.forcemode -1` force survival mode (-1 = AUTO, 0 = Disabled, 1 = Enabled, 2 = SemiSurvival).\
 `as_command forcesurvival.wavetime 120` time in seconds for wave respawns.\
 `as_command forcesurvival.lives 3` number of lives for semisurvival mode.\
-`as_command forcesurvival.livesmode 0` type of lives of semisurvival mode (0 = All dead; 1 = Any dead).\
+`as_command forcesurvival.livesmode 0` type of lives of semisurvival mode (0 = All dead, 1 = Any dead, -1 = Disabled).
 
 # Installation
 1. Download the latest [release](https://github.com/wootguy/ForceSurvival/releases) and extract to `svencoop_addon`

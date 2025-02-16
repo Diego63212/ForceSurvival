@@ -6,6 +6,7 @@ CCVar@ g_crossPluginToggle;
 CCVar@ g_respawnWaveTime;
 CCVar@ g_numberOfLives;
 CCVar@ g_livesMode;
+CCVar@ g_forceMode;
 
 void print(string text) { g_Game.AlertMessage( at_console, text); }
 void println(string text) { print(text + "\n"); }
@@ -56,7 +57,8 @@ void PluginInit()
 	@g_crossPluginToggle = CCVar("mode", -1, "Toggle survival mode from other plugins via this CVar", ConCommandFlag::AdminOnly);
 	@g_respawnWaveTime = CCVar("waveTime", 2*60, "Time in seconds for wave respawns", ConCommandFlag::AdminOnly);
 	@g_numberOfLives = CCVar("lives", 3, "Number of semisurvival lives", ConCommandFlag::AdminOnly);
-	@g_livesMode = CCVar("livesMode", 0, "Type of lives (0 = All dead; 1 = Any dead)", ConCommandFlag::AdminOnly);
+	@g_livesMode = CCVar("livesMode", 0, "Type of lives (0 = Any dead; 1 = All dead; -1 = Disabled)", ConCommandFlag::AdminOnly);
+	@g_forceMode = CCVar("forceMode", -1, "Force survival mode (0 = OFF; 1 = ON; 2 = SemiSurvival; -1 = AUTO)", ConCommandFlag::AdminOnly);
 }
 
 string formatTime(float t, bool statsPage=false) {
@@ -320,19 +322,12 @@ void check_living_players() {
 	}
 	
 	if (g_no_restart_mode && g_next_respawn_wave < g_Engine.time && totalLiving < totalPlayers) {
-		if (g_lives_mode && totalLiving > 0) {
-			if (g_lives > 1) {
-				g_lives -= 1;
-				g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "Lives: " + g_lives + "\n");
-			} else {
-				return;
-			}
+		if (respawn_everyone(totalLiving)) {
+			int deadCount = totalPlayers - totalLiving;
+			string ess = (deadCount == 1) ? "" : "s";
+			g_PlayerFuncs.ClientPrintAll(HUD_PRINTNOTIFY, "[SemiSurvival] Respawning " + deadCount + " dead player" + ess + ".\n");
+			totalLiving = totalPlayers;
 		}
-		int deadCount = totalPlayers - totalLiving;
-		string ess = (deadCount == 1) ? "" : "s";
-		g_PlayerFuncs.ClientPrintAll(HUD_PRINTNOTIFY, "[SemiSurvival] Respawning " + deadCount + " dead player" + ess + ".\n");
-		respawn_everyone();
-		totalLiving = totalPlayers;
 	}
 	if (g_no_restart_mode and totalLiving == totalPlayers) {
 		g_next_respawn_wave = g_Engine.time + g_respawnWaveTime.GetInt(); // reset the timer until at least one player is dead
@@ -344,13 +339,7 @@ void check_living_players() {
 	
 	if (g_no_restart_mode && !g_respawning_everyone) {
 		g_respawning_everyone = true;
-		if (g_lives > 1) {
-			g_lives -= 1;
-			g_next_respawn_wave = g_Engine.time + 4;
-			g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "Lives: " + g_lives + "\n");
-		} else {
-			g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "All lives lost.\n");
-		}
+		g_next_respawn_wave = g_Engine.time + 4;
 	}
 	else if (g_fake_survival_detected && !g_restarting_fake_survival_map) {
 		g_restarting_fake_survival_map = true;
@@ -412,7 +401,26 @@ bool isSpawnPointEnabled(CBaseEntity@ spawnPoint) {
 	return false;
 }
 
-void respawn_everyone() {
+bool reduce_live() {
+	if (g_lives < 1) {
+		return true;
+	}
+	g_lives -= 1;
+	g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "Lives: " + g_lives + "\n");
+	return false;
+}
+
+bool respawn_everyone(int totalLiving) {
+	if (g_livesMode.GetInt() != -1) {
+		bool noLives;
+		if (!g_lives_mode || g_lives_mode && totalLiving == 0) {
+			noLives = reduce_live();
+		}
+		if (noLives) {
+			return false;
+		}
+	}
+
 	g_respawning_everyone = false;
 	g_PlayerFuncs.RespawnAllPlayers(false, true);
 	g_next_respawn_wave = g_Engine.time + g_respawnWaveTime.GetInt();
@@ -432,6 +440,7 @@ void respawn_everyone() {
 			p.EndRevive(0);
 		}
 	}
+	return true;
 }
 
 void restart_map() {
@@ -462,6 +471,7 @@ void restart_map() {
 
 void MapInit() {
 	g_no_restart_mode = false; // don't continue this unless RTV plugin says too
+	g_force_mode = g_forceMode.GetInt();
 
 	if (g_force_mode == 1 || g_force_mode == 2) {
 		g_SurvivalMode.EnableMapSupport();
